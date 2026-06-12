@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Afiliados Shop</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Login/Register Modal -->
+  <div id="authModal" class="auth-modal">
+    <div class="auth-container">
+      <h2>🛒 Afiliados Shop</h2>
+      
+      <div id="loginForm" class="auth-form active">
+        <h3>Entrar</h3>
+        <input type="text" id="loginUsername" placeholder="👤 Usuário" />
+        <input type="password" id="loginPassword" placeholder="🔐 Senha" />
+        <button id="loginSubmit">Entrar</button>
+        <p id="loginError" class="error-message"></p>
+        <p class="auth-toggle">Não tem conta? <a href="#" id="toRegister">Registre-se aqui</a></p>
+      </div>
+
+      <div id="registerForm" class="auth-form">
+        <h3>Registrar</h3>
+        <input type="text" id="regUsername" placeholder="👤 Usuário" />
+        <input type="password" id="regPassword" placeholder="🔐 Senha" />
+        <p class="info-text">ℹ️ Registro padrão cria usuário normal. Apenas admins podem criar outros admins no painel.</p>
+        <button id="regSubmit">Registrar</button>
+        <p id="regError" class="error-message"></p>
+        <p class="auth-toggle">Já tem conta? <a href="#" id="toLogin">Faça login aqui</a></p>
+      </div>
+    </div>
+  </div>
+
+  <header class="topbar">
+    <div class="container">
+      <a class="logo" href="#">🛒 Afiliados Shop</a>
+      <form id="searchForm" class="search-form">
+        <input id="searchInput" type="search" placeholder="🔍 Buscar produto..." />
+        <button type="submit">Buscar</button>
+      </form>
+      <div class="user-info">
+        <span id="currentUser"></span>
+        <button id="logoutTopbar" class="logout-btn">Sair</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="tab-bar">
+      <button class="tab active" data-tab="shopTab">🛍️ Loja</button>
+      <button class="tab" id="adminTabBtn" data-tab="adminTab" style="display:none;">⚙️ Admin</button>
+    </div>
+
+    <section id="shopTab" class="tab-panel active">
+      <aside class="sidebar">
+        <h3>📂 Categorias</h3>
+        <ul id="categoryList">
+          <li data-category="all" class="active">🔸 Todas</li>
+          <li data-category="tec">💻 Tecnologia</li>
+          <li data-category="casa">🏠 Casa</li>
+          <li data-category="moda">👗 Moda</li>
+          <li data-category="beleza">💄 Beleza</li>
+        </ul>
+      </aside>
+
+      <section class="product-grid" id="productGrid"></section>
+    </section>
+
+    <section id="adminTab" class="tab-panel">
+      <div class="admin-box">
+        <p class="success-message">✅ Bem-vindo, administrador! Adicione seus produtos abaixo.</p>
+        <form id="addForm" class="add-form">
+          <label>📝 Nome do Produto</label>
+          <input type="text" id="productName" placeholder="Ex: Fone Bluetooth" required />
+          <label>📄 Descrição</label>
+          <input type="text" id="productDesc" placeholder="Ex: Som estéreo com cancelamento de ruído" required />
+          <label>💰 Preço</label>
+          <input type="text" id="productPrice" placeholder="Ex: R$ 199,90" required />
+          <label>🏷️ Categoria</label>
+          <select id="productCategory" required>
+            <option value="tec">💻 Tecnologia</option>
+            <option value="casa">🏠 Casa</option>
+            <option value="moda">👗 Moda</option>
+            <option value="beleza">💄 Beleza</option>
+          </select>
+          <label>🖼️ Upload de imagem</label>
+          <input type="file" id="productFile" accept="image/*" />
+          <div class="image-preview" id="imagePreview">Preview da imagem aparecerá aqui</div>
+          <label>🌐 Ou imagem (URL)</label>
+          <input type="url" id="productImg" placeholder="https://exemplo.com/imagem.jpg" />
+          <label>🔗 Link de Afiliado</label>
+          <input type="url" id="productLink" placeholder="https://afiliado.com/produto" required />
+          <button type="submit">➕ Adicionar Produto</button>
+        </form>
+        <div id="userAdminSection" class="admin-user-manager" style="display:none;">
+          <h3>👤 Criar novo usuário</h3>
+          <form id="userForm" class="add-form">
+            <label>Nome do usuário</label>
+            <input type="text" id="newUsername" placeholder="Ex: joao123" required />
+            <label>Senha</label>
+            <input type="password" id="newPassword" placeholder="Digite uma senha segura" required />
+            <label>Perfil</label>
+            <select id="newUserRole">
+              <option value="user">👤 Usuário Normal</option>
+              <option value="admin">🔐 Administrador</option>
+            </select>
+            <button type="submit">➕ Criar usuário</button>
+            <p id="userMessage" class="success-message"></p>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // Initialize users in localStorage
+    function initUsers() {
+      if (!localStorage.getItem('users')) {
+        const defaultUsers = [
+          { username: 'admin', password: 'ACS007', role: 'admin' },
+          { username: 'user', password: '123456', role: 'user' }
+        ];
+        localStorage.setItem('users', JSON.stringify(defaultUsers));
+      }
+    }
+
+    // Current logged-in user
+    let currentUser = null;
+
+    // Auth elements
+    const authModal = document.getElementById('authModal');
+    const loginForm = document.getElementById('loginForm');
+    const registerForm = document.getElementById('registerForm');
+    const loginUsername = document.getElementById('loginUsername');
+    const loginPassword = document.getElementById('loginPassword');
+    const loginSubmit = document.getElementById('loginSubmit');
+    const loginError = document.getElementById('loginError');
+    const regUsername = document.getElementById('regUsername');
+    const regPassword = document.getElementById('regPassword');
+    const regSubmit = document.getElementById('regSubmit');
+    const regError = document.getElementById('regError');
+    const toRegister = document.getElementById('toRegister');
+    const toLogin = document.getElementById('toLogin');
+    const currentUserSpan = document.getElementById('currentUser');
+    const logoutTopbar = document.getElementById('logoutTopbar');
+    const adminTabBtn = document.getElementById('adminTabBtn');
+    const userAdminSection = document.getElementById('userAdminSection');
+    const userForm = document.getElementById('userForm');
+    const newUsername = document.getElementById('newUsername');
+    const newPassword = document.getElementById('newPassword');
+    const newUserRole = document.getElementById('newUserRole');
+    const userMessage = document.getElementById('userMessage');
+
+    initUsers();
+
+    // Toggle between login and register
+    toRegister.addEventListener('click', e => {
+      e.preventDefault();
+      loginForm.classList.remove('active');
+      registerForm.classList.add('active');
+    });
+
+    toLogin.addEventListener('click', e => {
+      e.preventDefault();
+      registerForm.classList.remove('active');
+      loginForm.classList.add('active');
+    });
+
+    // Login handler
+    loginSubmit.addEventListener('click', () => {
+      const username = loginUsername.value.trim();
+      const password = loginPassword.value.trim();
+
+      if (!username || !password) {
+        loginError.textContent = 'Preencha usuário e senha';
+        return;
+      }
+
+      const users = JSON.parse(localStorage.getItem('users'));
+      const user = users.find(u => u.username === username && u.password === password);
+
+      if (user) {
+        currentUser = user;
+        sessionStorage.setItem('currentUser', JSON.stringify(user));
+        loginError.textContent = '';
+        authModal.style.display = 'none';
+        showContent();
+      } else {
+        loginError.textContent = 'Usuário ou senha inválidos';
+      }
+    });
+
+    // Register handler
+    regSubmit.addEventListener('click', () => {
+      const username = regUsername.value.trim();
+      const password = regPassword.value.trim();
+      const role = 'user';
+
+      if (!username || !password) {
+        regError.textContent = 'Preencha todos os campos';
+        return;
+      }
+
+      const users = JSON.parse(localStorage.getItem('users'));
+      if (users.find(u => u.username === username)) {
+        regError.textContent = 'Usuário já existe';
+        return;
+      }
+
+      users.push({ username, password, role });
+      localStorage.setItem('users', JSON.stringify(users));
+      regError.textContent = '';
+      currentUser = { username, password, role };
+      sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+      authModal.style.display = 'none';
+      showContent();
+    });
+
+    // Logout handler
+    logoutTopbar.addEventListener('click', () => {
+      currentUser = null;
+      sessionStorage.removeItem('currentUser');
+      loginUsername.value = '';
+      loginPassword.value = '';
+      regUsername.value = '';
+      regPassword.value = '';
+      loginForm.classList.add('active');
+      registerForm.classList.remove('active');
+      authModal.style.display = 'flex';
+      loginError.textContent = '';
+      regError.textContent = '';
+      switchTab('shopTab');
+      applyFilters();
+    });
+
+    // Show content based on user
+    function showContent() {
+      currentUserSpan.textContent = `Olá, ${currentUser.username}`;
+      if (currentUser.role === 'admin') {
+        adminTabBtn.style.display = 'block';
+        userAdminSection.style.display = 'block';
+      } else {
+        adminTabBtn.style.display = 'none';
+        userAdminSection.style.display = 'none';
+        if (adminTab.classList.contains('active')) {
+          switchTab('shopTab');
+        }
+      }
+      applyFilters();
+    }
+
+    // Check if user is already logged in
+    const savedUser = sessionStorage.getItem('currentUser');
+    if (savedUser) {
+      currentUser = JSON.parse(savedUser);
+      authModal.style.display = 'none';
+      showContent();
+    } else {
+      authModal.style.display = 'flex';
+    }
+
+    const produtos = [
+      { id: 1, name: "Fone Bluetooth", desc: "Som estéreo, cancelamento de ruído.", price: "R$ 199", category: "tec", link: "https://exemplo.com/afiliado1", img: "https://via.placeholder.com/260x180?text=Fone" },
+      { id: 2, name: "Cafeteira Elétrica", desc: "Café em 5 min, jarra de vidro.", price: "R$ 249", category: "casa", link: "https://exemplo.com/afiliado2", img: "https://via.placeholder.com/260x180?text=Cafeteira" },
+      { id: 3, name: "Relógio Smart", desc: "Monitor de batimento + GPS.", price: "R$ 349", category: "tec", link: "https://exemplo.com/afiliado3", img: "https://via.placeholder.com/260x180?text=Smartwatch" },
+      { id: 4, name: "Vestido Casual", desc: "Modelagem leve para o dia a dia.", price: "R$ 129", category: "moda", link: "https://exemplo.com/afiliado4", img: "https://via.placeholder.com/260x180?text=Vestido" },
+      { id: 5, name: "Combo Skincare", desc: "Creme + serum + protetor UV.", price: "R$ 189", category: "beleza", link: "https://exemplo.com/afiliado5", img: "https://via.placeholder.com/260x180?text=Beleza" }
+    ];
+
+    const productGrid = document.getElementById("productGrid");
+    const categoryList = document.getElementById("categoryList");
+    const searchForm = document.getElementById("searchForm");
+    const searchInput = document.getElementById("searchInput");
+    const tabs = document.querySelectorAll(".tab");
+    const shopTab = document.getElementById("shopTab");
+    const adminTab = document.getElementById("adminTab");
+
+    function switchTab(targetId) {
+      tabs.forEach(t => t.classList.toggle("active", t.dataset.tab === targetId));
+      shopTab.classList.toggle("active", targetId === "shopTab");
+      adminTab.classList.toggle("active", targetId === "adminTab");
+    }
+
+    tabs.forEach(tab => {
+      tab.addEventListener("click", () => switchTab(tab.dataset.tab));
+    });
+
+    function render(produtosFiltrados) {
+      const isAdmin = currentUser && currentUser.role === 'admin';
+      productGrid.innerHTML = produtosFiltrados.map(p => `
+        <article class="card">
+          <img src="${p.img}" alt="${p.name}" />
+          <div class="card-body">
+            <h4>${p.name}</h4>
+            <p>${p.desc}</p>
+            <p class="price">${p.price}</p>
+            <div class="card-actions">
+              <a href="${p.link}" target="_blank" class="btn">Comprar</a>
+              ${isAdmin ? `<button class="btn btn-delete" data-id="${p.id}">Remover</button>` : ''}
+            </div>
+          </div>
+        </article>
+      `).join("") || `<p class="sem-resultados">Nenhum produto encontrado.</p>`;
+    }
+
+    function applyFilters() {
+      let cat = document.querySelector("#categoryList .active").dataset.category;
+      let q = searchInput.value.trim().toLowerCase();
+      let result = produtos.filter(p => (cat === "all" || p.category === cat) && (p.name.toLowerCase().includes(q) || p.desc.toLowerCase().includes(q)));
+      render(result);
+    }
+
+    categoryList.addEventListener("click", e => {
+      if (e.target.tagName === "LI") {
+        categoryList.querySelectorAll("li").forEach(el => el.classList.remove("active"));
+        e.target.classList.add("active");
+        applyFilters();
+      }
+    });
+
+    const addForm = document.getElementById("addForm");
+    const productName = document.getElementById("productName");
+    const productDesc = document.getElementById("productDesc");
+    const productPrice = document.getElementById("productPrice");
+    const productCategory = document.getElementById("productCategory");
+    const productFile = document.getElementById("productFile");
+    const productImg = document.getElementById("productImg");
+    const productLink = document.getElementById("productLink");
+    const imagePreview = document.getElementById("imagePreview");
+    let uploadedImageUrl = "";
+
+    productFile.addEventListener("change", () => {
+      const file = productFile.files[0];
+      if (!file) {
+        imagePreview.textContent = "Preview da imagem aparecerá aqui";
+        imagePreview.style.backgroundImage = "none";
+        uploadedImageUrl = "";
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        uploadedImageUrl = reader.result;
+        imagePreview.style.backgroundImage = `url('${uploadedImageUrl}')`;
+        imagePreview.textContent = "";
+      };
+      reader.readAsDataURL(file);
+    });
+
+    addForm.addEventListener("submit", e => {
+      e.preventDefault();
+      const imageSource = uploadedImageUrl || productImg.value.trim();
+      const novo = {
+        id: produtos.length + 1,
+        name: productName.value.trim(),
+        desc: productDesc.value.trim(),
+        price: productPrice.value.trim(),
+        category: productCategory.value,
+        link: productLink.value.trim(),
+        img: imageSource || "https://via.placeholder.com/260x180?text=Sem+imagem"
+      };
+      if (!novo.name || !novo.desc || !novo.price || !novo.link) {
+        alert("Preencha todos os campos para adicionar.");
+        return;
+      }
+      produtos.push(novo);
+      addForm.reset();
+      uploadedImageUrl = "";
+      imagePreview.textContent = "Preview da imagem aparecerá aqui";
+      imagePreview.style.backgroundImage = "none";
+      applyFilters();
+    });
+
+    searchForm.addEventListener("submit", e => {
+      e.preventDefault();
+      applyFilters();
+    });
+
+    userForm.addEventListener('submit', e => {
+      e.preventDefault();
+      if (!currentUser || currentUser.role !== 'admin') {
+        userMessage.textContent = 'Apenas admins podem criar usuários.';
+        return;
+      }
+      const username = newUsername.value.trim();
+      const password = newPassword.value.trim();
+      const role = newUserRole.value;
+      if (!username || !password) {
+        userMessage.textContent = 'Preencha nome e senha.';
+        return;
+      }
+      const users = JSON.parse(localStorage.getItem('users'));
+      if (users.find(u => u.username === username)) {
+        userMessage.textContent = 'Usuário já existe.';
+        return;
+      }
+      users.push({ username, password, role });
+      localStorage.setItem('users', JSON.stringify(users));
+      userMessage.textContent = `Usuário ${role} criado com sucesso.`;
+      newUsername.value = '';
+      newPassword.value = '';
+      newUserRole.value = 'user';
+    });
+
+    // delete handler (delegated)
+    productGrid.addEventListener('click', e => {
+      const btn = e.target.closest('.btn-delete');
+      if (!btn) return;
+      const id = Number(btn.dataset.id);
+      if (!id) return;
+      if (!confirm('Remover este produto?')) return;
+      const idx = produtos.findIndex(p => p.id === id);
+      if (idx > -1) {
+        produtos.splice(idx, 1);
+        applyFilters();
+      }
+    });
+
+    render(produtos);
+  </script>
+</body>
+</html>
